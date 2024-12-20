@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Game</title>
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+
+       
+        #status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connection-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .connected { background-color: #28a745; }
+        .disconnected { background-color: #dc3545; }
+
+       
+        #players-count {
+            text-align: center;
+            color: #666;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        
+        .leaderboard-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .leaderboard-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+            transition: transform 0.2s;
+        }
+        .leaderboard-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .player-rank {
+            width: 25px;
+            height: 25px;
+            background: #007bff;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .player-score {
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: translateY(-20px);
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            to { transform: translateY(0); }
+        }
+
+        #modal-question {
+            margin: 0 0 20px 0;
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        #modal-timer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .question-options {
+            display: grid;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .option-button {
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1em;
+            color: #495057;
+        }
+
+        .option-button:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+            color: #007bff;
+            transform: translateX(5px);
+        }
+
+        .option-button:active {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quiz Game</h1>
+        
+        <!-- Join Form -->
+        <div id="join-section">
+            <form id="join-form" hx-target="#game-section" hx-swap="outerHTML">
+                <input type="text" name="username" placeholder="Your Name" required>
+                <input type="text" name="quiz_id" placeholder="Quiz ID" required>
+                <button type="submit">Join Quiz</button>
+            </form>
+        </div>
+
+        <!-- Game Section (Initially Hidden) -->
+        <div id="game-section" style="display: none;">
+            <div class="game-info">
+                <div id="player-info"></div>
+                <div id="players-count">Players online: 0</div>
+            </div>
+
+            <!-- Questions Section -->
+            <div class="questions-container" id="questions-container">
+                <!-- Questions will be inserted here -->
+            </div>
+
+            <!-- Leaderboard -->
+            <div id="leaderboard-container" class="leaderboard-container">
+                <div class="leaderboard-header">
+                    <span>Player</span>
+                    <span>Score</span>
+                </div>
+                <ul class="leaderboard-list">
+                    <li class="leaderboard-item" style="justify-content: center; color: #666;">
+                        Waiting for players...
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Answer Modal -->
+        <div id="answer-modal" class="modal">
+            <div class="modal-content">
+                <h2 id="modal-question"></h2>
+                <div id="modal-options" class="question-options"></div>
+                <div id="modal-timer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let playerData = {};
+        let questions = [];
+        let currentQuestion = null;
+        let answerStartTime;
+        let quizId;
+
+        const leaderboardContainer = document.getElementById('leaderboard-container');
+
+        document.getElementById('join-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = {
+                username: this.querySelector('[name="username"]').value,
+                quiz_id: this.querySelector('[name="quiz_id"]').value,
+            };
+
+            fetch('/api/quiz/join', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                playerData = data;
+                quizId = this.querySelector('[name="quiz_id"]').value;
+                
+                document.getElementById('join-section').style.display = 'none';
+                document.getElementById('game-section').style.display = 'block';
+                connectWebSocket(data.session_id, data.player_id);
+                setupQuestions(data.questions);
+            });
+        });
+
+        function connectWebSocket(sessionId, playerId) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws?player_id=${playerId}&session_id=${sessionId}`);
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                
+                switch(message.type) {
+                    case 'room_joined':
+                        handleRoomJoined(message.data);
+                        break;
+                    case 'leaderboard_update':
+                        updateLeaderboard(message.data.leaderboard);
+                        break;
+                    case 'player_connected':
+                        updatePlayersCount(message.data.count);
+                        break;
+                }
+            };
+        }
+
+        function setupQuestions(questionsList) {
+            questions = questionsList;
+            const container = document.getElementById('questions-container');
+            
+            questions.forEach((question, index) => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.innerHTML = `
+                    <h3>Question ${index + 1}</h3>
+                    <p>${question.word}</p>
+                    <button onclick="showAnswerModal(${index})">Answer</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function showAnswerModal(questionIndex) {
+            currentQuestion = questions[questionIndex];
+            const modal = document.getElementById('answer-modal');
+            const modalQuestion = document.getElementById('modal-question');
+            const modalOptions = document.getElementById('modal-options');
+
+            modalQuestion.textContent = currentQuestion.meaning;
+            modalOptions.innerHTML = currentQuestion.options.map(option => `
+                <button class="option-button" onclick="submitAnswer('${option}')">${option}</button>
+            `).join('');
+
+            modal.classList.add('show');
+            startTimer();
+        }
+
+        function handleRoomJoined(data) {
+            // Update player info
+            document.getElementById('player-info').textContent = 
+                `Welcome, ${data.player.username}!`;
+            
+            // Update players count
+            updatePlayersCount(data.room_info.player_count);
+            
+            // If initial leaderboard is provided
+            if (data.room_info.leaderboard) {
+                updateLeaderboard(data.room_info.leaderboard);
+            }
+
+            // Show game section
+            document.getElementById('game-section').style.display = 'block';
+        }
+
+        function startTimer() {
+            let timeLeft = 5;
+            const timerDiv = document.getElementById('modal-timer');
+            
+            const timer = setInterval(() => {
+                timerDiv.textContent = `Time left: ${timeLeft}s`;
+                timeLeft--;
+
+                if (timeLeft < 0) {
+                    clearInterval(timer);
+                    closeModal();
+                }
+            }, 1000);
+        }
+
+        function showAnswerModal(questionIndex) {
+            currentQuestion = questions[questionIndex];
+            const modal = document.getElementById('answer-modal');
+            const modalQuestion = document.getElementById('modal-question');
+            const modalOptions = document.getElementById('modal-options');
+
+            modalQuestion.textContent = currentQuestion.meaning;
+            modalOptions.innerHTML = currentQuestion.options.map(option => `
+                <button class="option-button" onclick="submitAnswer('${option}')">${option}</button>
+            `).join('');
+
+            modal.classList.add('show');
+            answerStartTime = Date.now(); // Record start time when showing modal
+            startTimer();
+        }
+
+        function calculateAnswerTime() {
+            const endTime = Date.now();
+            const timeInSeconds = (endTime - answerStartTime) / 1000; // Convert to seconds
+            return Math.min(timeInSeconds, 5);
+        }
+
+        function submitAnswer(answer) {
+            const answerTime = calculateAnswerTime();
+            
+            fetch('/api/quiz/submit-answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    player_id: playerData.player_id,
+                    session_id: playerData.session_id,
+                    quiz_id: quizId,
+                    question_id: currentQuestion.id,
+                    answer: answer,
+                    answer_time: answerTime  
+                })
+            });
+
+            closeModal();
+        }
+
+        function closeModal() {
+            document.getElementById('answer-modal').classList.remove('show');
+            currentQuestion = null;
+        }
+
+        function updateLeaderboard(leaderboard) {
+            const html = `
+                <div class="leaderboard-header">
+                    <span>Player</span>
+                    <span>Score</span>
+                </div>
+                <ul class="leaderboard-list">
+                    ${leaderboard.map((player, index) => `
+                        <li class="leaderboard-item">
+                            <div class="player-info">
+                                <span class="player-rank">${index + 1}</span>
+                                <span class="player-name">${player.username}</span>
+                            </div>
+                            <span class="player-score">${player.score}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+            leaderboardContainer.innerHTML = html;
+        }
+
+        function updatePlayersCount(count) {
+            document.getElementById('players-count').textContent = `Players online: ${count}`;
+        }
+    </script>
+</body>
+</html>

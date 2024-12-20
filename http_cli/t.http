@@ -1,0 +1,20 @@
+POST http://localhost:8080/api/quiz/join
+Content-Type: application/json
+
+{
+    "quiz_id": "quiz1",
+    "username": "test1"
+}
+
+###
+POST http://localhost:8080/api/quiz/submit-answer
+Content-Type: application/json
+
+{
+  "session_id": "4cc4d07f-4ac8-4314-80fa-768733183ce2",
+  "player_id": "5b1a5c95-f6c5-4975-8435-a286f279accc",
+    "quiz_id": "quiz1",
+    "question_id": "q1_1",
+    "answer": "A monotreme",
+    "answer_time": 1
+}
